@@ -6,28 +6,31 @@ from django.conf import settings
 from fabric.context_managers import cd
 from fabric.decorators import task
 from fabric.operations import local, run
-from django_zilla.fabric_tasks import PROJECT_NAME
-from django_zilla.fabric_tasks.git import get_current_branch
-# from django_zilla.fabric_tasks import db
+from witch.fabric_tasks import PROJECT_NAME
 
-DEFAULT_TARGET_STAGE = 'prod'
+
+def _get_current_branch():
+    return local("git symbolic-ref HEAD", capture=True).split('/')[-1]
 
 
 @task
-def deploy(target_stage=DEFAULT_TARGET_STAGE):
-    """ --> [REMOTE] Deploy to target env """
+def deploy(target_stage='prod'):
+    """--> Deploy to target env"""
     static_dist_root = getattr(settings, 'STATIC_DIST_ROOT', None)
     local("git add --all .")
     static_dist_root and local("git add -f %s" % static_dist_root)
     local("git commit --allow-empty -m 'deploy %s/%s'" % (PROJECT_NAME, target_stage))
-    local("git push %s %s -f" % (target_stage, get_current_branch()))
-    static_dist_root and local("git rm -r --cached %s" % static_dist_root)
-    static_dist_root and local("git commit --amend -a --no-edit --allow-empty")
+    local("git push %s %s -f" % (target_stage, _get_current_branch()))
+    if static_dist_root:
+        local("git rm -r --cached %s" % static_dist_root)
+        local("git commit --amend -a --no-edit --allow-empty")
 
+
+# from django_zilla.fabric_tasks import db
 
 # @task
 # def fetch():
-#     """ --> [REMOTE] Align env.db_selected/migrations/media from target """
+#     """--> [REMOTE] Align env.db_selected/migrations/media from target"""
 #     settings_remote = import_module(name='%s.%s' % (settings.SETTINGS_PATH, env.target_stage))
 #     db_remote = settings_remote.DATABASES['default']
 #     media_dirname = os.path.split(settings.MEDIA_ROOT)[-1]
@@ -47,8 +50,8 @@ def deploy(target_stage=DEFAULT_TARGET_STAGE):
 
 # TODO here the draft
 # @task
-# def fetchdb(target_stage):
-#     """ --> [REMOTE] Align env.db_selected/migrations/media from target """
+# def fetchdb(target_stage='prod'):
+#     """--> [REMOTE] Align env.db_selected/migrations/media from target"""
 #     settings_remote = import_module(name='%s.%s' % (settings.SETTINGS_PATH, target_stage))
 #     db_remote = settings_remote.DATABASES['default']
 #     with cd('/srv/www/%s/' % PROJECT_NAME):

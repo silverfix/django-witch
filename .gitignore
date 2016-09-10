@@ -2,6 +2,7 @@ ___pycache__
 *.pyc
 *.mo
 /.idea
+*.egg-info
 /bower_components
 /media/*
 /node_modules

@@ -11,7 +11,7 @@ from django.contrib.contenttypes.models import ContentType
 
 @task
 def clean_contenttypes():
-    """ Clean django ContentType model """
+    """Clean django ContentType model"""
     for c in ContentType.objects.all():
         if not c.model_class():
             print 'Deleting [{}.{}]'.format(c.app_label, c.model)
@@ -23,7 +23,7 @@ def clean_contenttypes():
 
 @task
 def flush_cache():
-    """ Flush django default cache """
+    """Flush django default cache"""
     cache.clear()
     redis_utils.reset_stats()
     print 'Cache flushed.'
@@ -31,7 +31,7 @@ def flush_cache():
 
 @task
 def clear_sessions():
-    """ Clear django sessions """
+    """Clear django sessions"""
     cache_session = cache.get_cache(settings.SESSION_CACHE_ALIAS)
     cache_session.clear()
     redis_utils.reset_stats()
