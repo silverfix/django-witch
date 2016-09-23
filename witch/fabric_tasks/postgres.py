@@ -4,7 +4,7 @@ from __future__ import unicode_literals, division
 from django.conf import settings
 from fabric.context_managers import hide
 from fabric.decorators import task
-from fabric.operations import local, os, settings as fab_settings
+from fabric.operations import local, settings as fab_settings
 
 
 DB = settings.DATABASES['default']

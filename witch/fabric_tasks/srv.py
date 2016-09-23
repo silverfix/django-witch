@@ -1,36 +1,66 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals, division, absolute_import
-from importlib import import_module
-from django.conf import settings
-from fabric.context_managers import cd
+
+from fabric.api import hide, env
+
+from fabric.context_managers import cd, prefix
 from fabric.decorators import task
 from fabric.operations import local, run
-from witch.fabric_tasks import PROJECT_NAME
+from fabric.utils import abort
 
-
-def _get_current_branch():
-    return local("git symbolic-ref HEAD", capture=True).split('/')[-1]
+from witch import utils
+from witch.utils import remote, print_local, print_remote
 
 
 @task
-def deploy(target_stage='prod'):
-    """--> Deploy to target env"""
-    static_dist_root = getattr(settings, 'STATIC_DIST_ROOT', None)
-    local("git add --all .")
-    static_dist_root and local("git add -f %s" % static_dist_root)
-    local("git commit --allow-empty -m 'deploy %s/%s'" % (PROJECT_NAME, target_stage))
-    local("git push %s %s -f" % (target_stage, _get_current_branch()))
-    if static_dist_root:
-        local("git rm -r --cached %s" % static_dist_root)
-        local("git commit --amend -a --no-edit --allow-empty")
+@remote
+def deploy():
+    """Deploy to target env"""
+    with hide('output'):
+        deploy_branch = getattr(env, 'deploy_branch', 'deploy')
+        working_branch = utils.get_current_branch()
+        if working_branch == deploy_branch:
+            abort('Deploying from "{}" branch is not permitted'.format(deploy_branch))
 
+        uncommitted_changes = utils.uncommitted_changes()
+        if uncommitted_changes:
+            local('git stash')
+        with hide('stderr'):
+            local('git checkout {0} || git checkout -b {0}'.format(deploy_branch))
+        if uncommitted_changes:
+            local('git checkout stash -- .')
+            local('git add --all .')
+        local('git commit --allow-empty -m \'Deploy {branch} @ {stage}\''.format(
+            branch=working_branch, stage=env.stage['name']
+        ))
+        with hide('stderr'):
+            local('git checkout {}'.format(working_branch))
+        if uncommitted_changes:
+            local('git stash pop')
+        print_local('Pushing to origin/{}..'.format(deploy_branch))
+        with hide('stderr'):
+            local('git push -f origin {}'.format(deploy_branch))
 
-# from django_zilla.fabric_tasks import db
+        with cd(env.stage['root']), prefix(env.stage['venv']):
+            print_remote('Fetching from origin/{}..'.format(deploy_branch))
+            run('git fetch origin {}'.format(deploy_branch))
+            run('git reset --hard origin/{}'.format(deploy_branch))
+            print_remote('Running pip install..')
+            run('pip install -r requirements.txt')
+            print_remote('Running manage.py migrate..')
+            run('python manage.py migrate')
+            print_remote('Running manage.py collectstatic..')
+            run('python manage.py collectstatic --clear --noinput')
+            print_remote('Deleting old *.pyc files..')
+            run('find . -name \*.pyc -delete')
+            print_remote('Triggering graceful reload..')
+            run('touch {}'.format(env.stage['uwsgi_ini']))
+
 
 # @task
 # def fetch():
-#     """--> [REMOTE] Align env.db_selected/migrations/media from target"""
+#     """--> Align env.db_selected/migrations/media from target"""
 #     settings_remote = import_module(name='%s.%s' % (settings.SETTINGS_PATH, env.target_stage))
 #     db_remote = settings_remote.DATABASES['default']
 #     media_dirname = os.path.split(settings.MEDIA_ROOT)[-1]
@@ -51,7 +81,7 @@ def deploy(target_stage='prod'):
 # TODO here the draft
 # @task
 # def fetchdb(target_stage='prod'):
-#     """--> [REMOTE] Align env.db_selected/migrations/media from target"""
+#     """--> Align env.db_selected/migrations/media from target"""
 #     settings_remote = import_module(name='%s.%s' % (settings.SETTINGS_PATH, target_stage))
 #     db_remote = settings_remote.DATABASES['default']
 #     with cd('/srv/www/%s/' % PROJECT_NAME):
