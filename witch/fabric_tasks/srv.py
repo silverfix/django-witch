@@ -17,7 +17,7 @@ from witch.utils import remote, print_local, print_remote
 @remote
 def deploy():
     """Deploy to target env"""
-    with hide('output'):
+    with hide('output', 'running'):
         deploy_branch = getattr(env, 'deploy_branch', 'deploy')
         working_branch = utils.get_current_branch()
         if working_branch == deploy_branch:
@@ -58,6 +58,7 @@ def deploy():
             run('touch {}'.format(env.stage['uwsgi_ini']))
 
 
+# TODO rewrite as the draft below
 # @task
 # def fetch():
 #     """--> Align env.db_selected/migrations/media from target"""

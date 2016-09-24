@@ -7,6 +7,3 @@ from fabric.api import env
 
 env.keepalive = 60
 env.colorize_errors = True
-
-
-from fabric_tasks.srv import deploy
