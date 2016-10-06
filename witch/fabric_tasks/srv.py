@@ -5,9 +5,11 @@ from __future__ import unicode_literals, division, absolute_import
 from fabric.api import hide, env
 
 from fabric.context_managers import cd, prefix
+from fabric.contrib.files import sed
 from fabric.decorators import task
 from fabric.operations import local, run
 from fabric.utils import abort
+from os.path import join
 
 from witch import utils
 from witch.utils import remote, print_local, print_remote
@@ -42,10 +44,16 @@ def deploy():
         with hide('stderr'):
             local('git push -f origin {}'.format(deploy_branch))
 
-        with cd(env.stage['root']), prefix(env.stage['venv']):
+        with cd(env.stage['project_root']), prefix(env.stage['venv_command']):
             print_remote('Fetching from origin/{}..'.format(deploy_branch))
             run('git fetch origin {}'.format(deploy_branch))
             run('git reset --hard origin/{}'.format(deploy_branch))
+            run('git clean --force -d')
+            print_remote('Pointing settings/__init__.py to the right stage..')
+            run('echo "{import_stmt}" > {settings_init_py}'.format(
+                import_stmt='from .{} import *'.format(env.stage['name']),
+                settings_init_py=join(env.stage['settings_root'], '__init__.py')
+            ))
             print_remote('Running pip install..')
             run('pip install -r requirements.txt')
             print_remote('Running manage.py migrate..')
