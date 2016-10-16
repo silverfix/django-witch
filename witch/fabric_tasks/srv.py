@@ -5,7 +5,6 @@ from __future__ import unicode_literals, division, absolute_import
 from fabric.api import hide, env
 
 from fabric.context_managers import cd, prefix
-from fabric.contrib.files import sed
 from fabric.decorators import task
 from fabric.operations import local, run
 from fabric.utils import abort
@@ -25,21 +24,13 @@ def deploy():
         if working_branch == deploy_branch:
             abort('Deploying from "{}" branch is not permitted'.format(deploy_branch))
 
-        uncommitted_changes = utils.uncommitted_changes()
-        if uncommitted_changes:
-            local('git stash')
-        with hide('stderr'):
-            local('git checkout {0} || git checkout -b {0}'.format(deploy_branch))
-        if uncommitted_changes:
-            local('git checkout stash -- .')
-            local('git add --all .')
-        local('git commit --allow-empty -m \'Deploy {branch} @ {stage}\''.format(
-            branch=working_branch, stage=env.stage['name']
-        ))
-        with hide('stderr'):
-            local('git checkout {}'.format(working_branch))
-        if uncommitted_changes:
-            local('git stash pop')
+        print_local('Preparing commit and deploy branch..')
+        local('git symbolic-ref HEAD refs/heads/{}'.format(deploy_branch))
+        local('git add --all .')
+        local('git commit --allow-empty -m \'Deploy {} @ {}\''.format(working_branch, env.stage['name']))
+        local('git symbolic-ref HEAD refs/heads/{}'.format(working_branch))
+        local('git reset')
+
         print_local('Pushing to origin/{}..'.format(deploy_branch))
         with hide('stderr'):
             local('git push -f origin {}'.format(deploy_branch))
@@ -49,19 +40,19 @@ def deploy():
             run('git fetch origin {}'.format(deploy_branch))
             run('git reset --hard origin/{}'.format(deploy_branch))
             run('git clean --force -d')
-            print_remote('Pointing settings/__init__.py to the right stage..')
-            run('echo "{import_stmt}" > {settings_init_py}'.format(
-                import_stmt='from .{} import *'.format(env.stage['name']),
-                settings_init_py=join(env.stage['settings_root'], '__init__.py')
+            print_remote('Pointing settings to the right stage..')
+            run('cp {stage_settings} {current_settings}'.format(
+                stage_settings=join(env.stage['settings_root'], '{}.py'.format(env.stage['name'])),
+                current_settings=join(env.stage['settings_root'], 'CURRENT.py')
             ))
             print_remote('Running pip install..')
             run('pip install -r requirements.txt')
+            print_remote('Deleting old *.pyc files..')
+            run('find . -name \*.pyc -delete')
             print_remote('Running manage.py migrate..')
             run('python manage.py migrate')
             print_remote('Running manage.py collectstatic..')
             run('python manage.py collectstatic --clear --noinput')
-            print_remote('Deleting old *.pyc files..')
-            run('find . -name \*.pyc -delete')
             print_remote('Triggering graceful reload..')
             run('touch {}'.format(env.stage['uwsgi_ini']))
 
