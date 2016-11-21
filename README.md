@@ -3,7 +3,7 @@
 
 What is Witch?
 --------------
-Witch is just a container of a bunch of useful utils/mixin to facilitate your work ;)
+Witch is just a container of a bunch of useful devops script to facilitate your work ;)
 
 Why did you choose the name Witch?
 ----------------------------------
