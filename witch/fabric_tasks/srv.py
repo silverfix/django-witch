@@ -2,7 +2,7 @@
 
 from __future__ import unicode_literals, division, absolute_import
 
-from fabric.api import hide, env
+from fabric.api import env
 
 from fabric.context_managers import cd, prefix
 from fabric.decorators import task
@@ -31,8 +31,7 @@ def deploy():
     local('git reset')
 
     print_local('Pushing to origin/{}..'.format(deploy_branch))
-    with hide('stderr'):
-        local('git push -f origin {}'.format(deploy_branch))
+    local('git push -f origin {}'.format(deploy_branch))
 
     with cd(env.stage['project_root']), prefix(env.stage['venv_command']):
         print_remote('Fetching from origin/{}..'.format(deploy_branch))
