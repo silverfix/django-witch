@@ -39,7 +39,7 @@ def deploy():
         run('git reset --hard origin/{}'.format(deploy_branch))
         run('git clean --force -d')
         print_remote('Pointing settings to the right stage..')
-        run('cp {stage_settings} {current_settings}'.format(
+        run('ln -s --force {stage_settings} {current_settings}'.format(
             stage_settings=join(env.stage['settings_root'], '{}.py'.format(env.stage['name'])),
             current_settings=join(env.stage['settings_root'], 'CURRENT.py')
         ))
@@ -49,6 +49,8 @@ def deploy():
         run('find . -name \*.pyc -delete')
         print_remote('Running manage.py migrate..')
         run('python manage.py migrate')
+        print_remote('Running manage.py fixtures load..')
+        run('python manage.py fixtures load')
         print_remote('Running manage.py collectstatic..')
         run('python manage.py collectstatic --clear --noinput')
         print_remote('Triggering graceful reload..')
