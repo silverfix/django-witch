@@ -54,7 +54,7 @@ def deploy():
         print_remote('Running manage.py collectstatic..')
         run('python manage.py collectstatic --clear --noinput')
         print_remote('Triggering graceful reload..')
-        run('touch {}'.format(env.stage['uwsgi_ini']))
+        run('killall -SIGHUP uwsgi')
 
 
 # TODO rewrite as the draft below
